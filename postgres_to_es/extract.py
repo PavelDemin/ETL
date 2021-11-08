@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Tuple
 import uuid
 from typing import Optional
 from datetime import datetime, timezone
@@ -34,7 +34,7 @@ class Extract:
     def _cur(self) -> cursor:
         return self._con().cursor()
 
-    def fetch_data(self, **kwargs) -> list[FilmWork]:
+    def fetch_data(self, last_update, limit) -> Tuple[list, Optional[datetime]]:
         cur = self._cur()
 
         cur.execute("""
@@ -55,11 +55,11 @@ class Extract:
                    LEFT JOIN content.person p ON p.id = pfw.person_id
                    LEFT JOIN content.genre_film_work gfw ON gfw.film_work_id = fw.id
                    LEFT JOIN content.genre g ON g.id = gfw.genre_id
-                   WHERE fw.updated_at > %(updated_at)s 
+                   WHERE fw.updated_at > %(updated_at)s
                    GROUP BY fw.id, pfw.role, p.id, g.name
-                   ORDER BY fw.title
+                   ORDER BY fw.updated_at ASC
                    LIMIT %(limit)s;
-               """, kwargs)
+               """, {'updated_at': last_update, 'limit': limit})
         fetch_data = cur.fetchall()
 
 
@@ -108,4 +108,6 @@ class Extract:
         # """, (fw_ids, ))
         # fetch_data = cur.fetchall()
         data = [FilmWork(**dict(row)) for row in fetch_data]
-        return data
+        if len(data) == 0:
+            return [], None
+        return data, data[-1].updated_at

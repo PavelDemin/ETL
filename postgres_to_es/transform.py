@@ -42,15 +42,16 @@ class Transform:
             writers_names = []
             group_list = list(group)
             for i in group_list:
-                person = ElPerson(id=i.p_id, name=i.full_name)
-                if i.role == 'actor' and person not in actors:
-                    actors.append(person)
-                    actors_names.append(i.full_name)
-                if i.role == 'writer' and person not in writers:
-                    writers.append(person)
-                    writers_names.append(i.full_name)
-                if i.role == 'director' and i.full_name not in directors:
-                    directors.append(i.full_name)
+                if i.p_id is not None:
+                    person = ElPerson(id=i.p_id, name=i.full_name)
+                    if i.role == 'actor' and person not in actors:
+                        actors.append(person)
+                        actors_names.append(i.full_name)
+                    if i.role == 'writer' and person not in writers:
+                        writers.append(person)
+                        writers_names.append(i.full_name)
+                    if i.role == 'director' and i.full_name not in directors:
+                        directors.append(i.full_name)
                 if i.name not in genres:
                     genres.append(i.name)
                 if last_date is None or i.updated_at > last_date:
@@ -83,9 +84,9 @@ class Transform:
                 "genre": [", ".join(row.genre)],
                 "title": row.title,
                 "description": row.description,
-                "director": [", ".join(row.director)],
-                "actors_names": [", ".join(row.actors_names)],
-                "writers_names": [", ".join(row.writers_names)],
+                "director": row.director if len(row.director) != 0 else None,
+                "actors_names": row.actors_names,
+                "writers_names": row.writers_names,
                 "actors": [dict(i) for i in row.actors],
                 "writers": [dict(i) for i in row.writers]
             }

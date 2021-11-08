@@ -21,7 +21,6 @@ class Load:
         except NotFoundError:
             return False
 
-
     def get_index(self, index: Union[list[str], str]):
         return self.es.indices.get(index=index)
 

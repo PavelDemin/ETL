@@ -31,23 +31,25 @@ def main():
         "host": config.PG_HOST,
         "port": config.PG_PORT
     }
-    table_list = ["film_work"]
+    create_indices()
     while True:
-        for table in table_list:
-            logging.info(f"Start extract data from Postgres server with limit {config.LIMIT}.")
-            st = state.get_state(table)
-            extract = Extract(dsl, config.LIMIT)
-            data = extract.fetch_data(**st)
-            logging.info("Extract data end. Total length {}.".format(len(data)))
+        logging.info(f"Start extract data from Postgres server with limit {config.LIMIT}.")
+        st = state.get_state('updated_at')
+        print(st)
+        extract = Extract(dsl, config.LIMIT)
+        data, updated_at = extract.fetch_data(st, config.LIMIT)
+        if updated_at is not None:
+            state.set_state('updated_at', str(updated_at))
+        logging.info("Extract data end. Total length {}.".format(len(data)))
 
-            logging.info(f"Start transform data.")
-            transform = Transform(data)
-            data = transform.get_data()
-            logging.info("Transform data successful end.")
-            logging.info(f"Start load data to Elasticsearch")
-            info = es_load.load_data(data)
-            logging.info(info)
-            logging.info(f"Load data successful.")
+        logging.info(f"Start transform data.")
+        transform = Transform(data)
+        data = transform.get_data()
+        logging.info("Transform data successful end.")
+        logging.info(f"Start load data to Elasticsearch")
+        info = es_load.load_data(data)
+        logging.info(info)
+        logging.info(f"Load data successful.")
 
         sleep(5)
 
