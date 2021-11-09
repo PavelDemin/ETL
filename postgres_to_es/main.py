@@ -8,8 +8,18 @@ from config import config
 from state import State, JsonFileStorage
 import logging
 
+pg_dsl = {
+    "dbname": config.PG_DBNAME,
+    "user": config.PG_USER,
+    "password": config.PG_PASSWORD.get_secret_value(),
+    "host": config.PG_HOST,
+    "port": config.PG_PORT
+}
+el_dsl = {'host': config.ES_HOST, "port": config.ES_PORT}
 
-es_load = Load()
+extract = Extract(pg_dsl, config.LIMIT)
+es_load = Load(el_dsl)
+
 state = State(JsonFileStorage(config.STATE_FILE_PATH))
 
 
@@ -24,22 +34,11 @@ def create_indices():
 
 
 def main():
-    dsl = {
-        "dbname": config.PG_DBNAME,
-        "user": config.PG_USER,
-        "password": config.PG_PASSWORD.get_secret_value(),
-        "host": config.PG_HOST,
-        "port": config.PG_PORT
-    }
     create_indices()
     while True:
         logging.info(f"Start extract data from Postgres server with limit {config.LIMIT}.")
         st = state.get_state('updated_at')
-        print(st)
-        extract = Extract(dsl, config.LIMIT)
         data, updated_at = extract.fetch_data(st, config.LIMIT)
-        if updated_at is not None:
-            state.set_state('updated_at', str(updated_at))
         logging.info("Extract data end. Total length {}.".format(len(data)))
 
         logging.info(f"Start transform data.")
@@ -48,10 +47,12 @@ def main():
         logging.info("Transform data successful end.")
         logging.info(f"Start load data to Elasticsearch")
         info = es_load.load_data(data)
+        if updated_at is not None:
+            state.set_state('updated_at', str(updated_at))
         logging.info(info)
         logging.info(f"Load data successful.")
 
-        sleep(5)
+        sleep(config.BULK_TIMER)
 
 
 if __name__ == '__main__':

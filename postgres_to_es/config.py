@@ -9,11 +9,11 @@ class Settings(BaseSettings):
     PG_PASSWORD: SecretStr
     PG_USER: str
     LIMIT: Optional[int]
-    ORDER_FIELD: List[str]
-    STATE_FIELD: List[str]
-    FETCH_DELAY: Optional[float]
+    BULK_TIMER: int
     STATE_FILE_PATH: str
     INDICES_FILE_PATH: str
+    ES_HOST: str
+    ES_PORT: int
     LOGGER_LEVEL: str
 
     class Config:

@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 import psycopg2
 from psycopg2.extensions import connection, cursor
+from psycopg2 import OperationalError
 from psycopg2.extras import DictCursor
+from misc import backoff
 
 
 @dataclass
@@ -16,6 +18,7 @@ class FilmWork:
     created_at: datetime
     updated_at: datetime
     p_id: uuid
+    greatest: datetime
     full_name: Optional[str] = None
     name: Optional[str] = None
     role: Optional[str] = None
@@ -28,11 +31,14 @@ class Extract:
         self.dsl = dsl
         self.limit = limit
 
+    @backoff(OperationalError)
     def _con(self) -> connection:
-        return psycopg2.connect(**self.dsl, cursor_factory=DictCursor)
+        con = psycopg2.connect(**self.dsl, cursor_factory=DictCursor)
+        return con
 
     def _cur(self) -> cursor:
-        return self._con().cursor()
+        con = self._con()
+        return con.cursor()
 
     def fetch_data(self, last_update, limit) -> Tuple[list, Optional[datetime]]:
         cur = self._cur()
@@ -49,20 +55,18 @@ class Extract:
                        pfw.role, 
                        p.id as p_id, 
                        p.full_name,
-                       g.name
+                       g.name,
+                       Greatest(fw.updated_at, p.updated_at, g.updated_at) as greatest
                    FROM content.film_work fw
                    LEFT JOIN content.person_film_work pfw ON pfw.film_work_id = fw.id
                    LEFT JOIN content.person p ON p.id = pfw.person_id
                    LEFT JOIN content.genre_film_work gfw ON gfw.film_work_id = fw.id
                    LEFT JOIN content.genre g ON g.id = gfw.genre_id
-                   WHERE fw.updated_at > %(updated_at)s
-                   GROUP BY fw.id, pfw.role, p.id, g.name
-                   ORDER BY fw.updated_at ASC
+                   WHERE fw.updated_at > %(updated_at)s OR p.updated_at > %(updated_at)s OR g.updated_at > %(updated_at)s
+                   ORDER BY Greatest(fw.updated_at, p.updated_at, g.updated_at) ASC
                    LIMIT %(limit)s;
                """, {'updated_at': last_update, 'limit': limit})
         fetch_data = cur.fetchall()
-
-
 
 
 
@@ -110,4 +114,4 @@ class Extract:
         data = [FilmWork(**dict(row)) for row in fetch_data]
         if len(data) == 0:
             return [], None
-        return data, data[-1].updated_at
+        return data, data[-1].greatest

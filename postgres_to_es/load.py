@@ -1,26 +1,32 @@
 from typing import Union
-from uuid import uuid4
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
-from elasticsearch.exceptions import NotFoundError
+from elasticsearch.exceptions import NotFoundError, ConnectionError
+from misc import backoff
 
 
 class Load:
-    def __init__(self):
-        self.es = Elasticsearch()
+    def __init__(self, dsl):
+        self.dsl = dsl
+
+    @backoff(ConnectionError)
+    def _es(self):
+        es = Elasticsearch([self.dsl])
+        es.info()
+        return es
 
     def crate_index(self, index, body):
-        return self.es.indices.create(index=index, body=body)
+        return self._es().indices.create(index=index, body=body)
 
     def load_data(self, data):
-        return bulk(self.es, data)
+        return bulk(self._es(), data)
 
     def cat_index(self, index):
         try:
-            return self.es.cat.indices(index='movies')
+            return self._es().cat.indices(index)
         except NotFoundError:
             return False
 
     def get_index(self, index: Union[list[str], str]):
-        return self.es.indices.get(index=index)
+        return self._es().indices.get(index=index)
 
