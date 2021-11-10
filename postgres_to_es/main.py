@@ -1,29 +1,33 @@
+import logging
 import json
 from time import sleep
-from load import Load
+
 import misc
 from transform import Transform
 from extract import Extract
 from config import config
 from state import State, JsonFileStorage
-import logging
+from load import Load
 
 pg_dsl = {
     "dbname": config.PG_DBNAME,
     "user": config.PG_USER,
     "password": config.PG_PASSWORD.get_secret_value(),
     "host": config.PG_HOST,
-    "port": config.PG_PORT
+    "port": config.PG_PORT,
+    "options": f"-c search_path={config.PG_SCHEMA}"
 }
 el_dsl = {'host': config.ES_HOST, "port": config.ES_PORT}
 
 extract = Extract(pg_dsl, config.LIMIT)
 es_load = Load(el_dsl)
-
 state = State(JsonFileStorage(config.STATE_FILE_PATH))
 
 
 def create_indices():
+    """
+    This method create index to elasticsearch database if index is not exist
+    """
     with open(config.INDICES_FILE_PATH, "r") as file:
         indices: dict = json.load(file)
         for index in indices.keys():
@@ -45,6 +49,7 @@ def main():
         transform = Transform(data)
         data = transform.get_data()
         logging.info("Transform data successful end.")
+
         logging.info(f"Start load data to Elasticsearch")
         info = es_load.load_data(data)
         if updated_at is not None:

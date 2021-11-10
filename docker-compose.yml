@@ -1,0 +1,34 @@
+version: "3.9"
+services:
+  etl:
+    container_name: etl-app
+    build:
+      context: .
+    restart: always
+    env_file:
+      - postgres_to_es/.env
+    networks:
+      - etl-network
+    depends_on:
+      - elasticsearch
+  elasticsearch:
+    container_name: elastic-serv
+    image: elasticsearch:7.14.2
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    env_file:
+      - postgres_to_es/.env
+    networks:
+      - etl-network
+
+networks:
+  etl-network:
+    external: true
+
+volumes:
+  elasticsearch-data:
+    driver: local

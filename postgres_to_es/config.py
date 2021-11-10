@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseSettings, SecretStr
 
 
@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     PG_DBNAME: str
     PG_PASSWORD: SecretStr
     PG_USER: str
+    PG_SCHEMA: str
     LIMIT: Optional[int]
     BULK_TIMER: int
     STATE_FILE_PATH: str

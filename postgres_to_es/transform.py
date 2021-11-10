@@ -1,11 +1,13 @@
+import logging
 import datetime
-from typing import Optional
-from extract import FilmWork
 import itertools
+
+from typing import Optional
 from pydantic import BaseModel
 from uuid import UUID
+
 import misc
-import logging
+from extract import FilmWork
 
 
 class ElPerson(BaseModel):
@@ -27,10 +29,14 @@ class ElFilmWork(BaseModel):
 
 
 class Transform:
+    """
+    The class implements transform data to load in Elasticsearch database
+    """
     def __init__(self, data: list[FilmWork]):
         self.data = data
 
-    def _transform_data(self):
+    def _transform_data(self) -> list[ElFilmWork]:
+        """ This method transform data"""
         fw = []
         last_date = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
         for key, group in itertools.groupby(self.data, lambda x: x.fw_id):
@@ -75,6 +81,7 @@ class Transform:
         return fw
 
     def get_data(self):
+        """ The method returns a generator with prepared data """
         for row in self._transform_data():
             doc = {
                 "_index": "movies",
