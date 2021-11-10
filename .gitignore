@@ -80,7 +80,7 @@ docs/_build/
 target/
 
 # PyCharm
-
+.idea
 
 ### Django ###
 *.log
