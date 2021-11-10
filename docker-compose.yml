@@ -6,7 +6,7 @@ services:
       context: .
     restart: always
     env_file:
-      - postgres_to_es/.env
+      - .env
     networks:
       - etl-network
     depends_on:
@@ -21,7 +21,7 @@ services:
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     env_file:
-      - postgres_to_es/.env
+      - .env
     networks:
       - etl-network
 
