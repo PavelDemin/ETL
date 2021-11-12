@@ -1,28 +1,27 @@
-from typing import Tuple
-from typing import Optional
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional, Tuple
 from uuid import UUID
 
 import psycopg2
-from psycopg2.extensions import connection, cursor
-from psycopg2 import OperationalError
-from psycopg2.extras import DictCursor
 from misc import backoff
+from psycopg2 import OperationalError
+from psycopg2.extensions import connection
+from psycopg2.extras import DictCursor
 
 
 @dataclass
 class FilmWork:
-    fw_id: UUID
+    id: UUID
     title: str
     type: str
     created_at: datetime
     updated_at: datetime
-    p_id: UUID
+    person_id: UUID
     greatest: datetime
-    full_name: Optional[str] = None
-    name: Optional[str] = None
-    role: Optional[str] = None
+    person_full_name: Optional[str] = None
+    genre: Optional[str] = None
+    person_role: Optional[str] = None
     rating: Optional[float] = None
     description: Optional[str] = None
 
@@ -31,55 +30,58 @@ class Extract:
     """
     The class implements unloading data from Postgres database
     """
+
     def __init__(self, dsl: dict, limit: int):
         self.dsl = dsl
         self.limit = limit
+        self._con: Optional[connection] = None
 
     @backoff(OperationalError)
-    def _con(self) -> connection:
+    def create_connection(self):
         """
-        Set connection to db
+        Create connection to db
         """
-        con = psycopg2.connect(**self.dsl, cursor_factory=DictCursor)
-        return con
+        return psycopg2.connect(**self.dsl, cursor_factory=DictCursor)
 
-    def _cur(self) -> cursor:
+    @property
+    def con(self) -> connection:
         """
-        Get cursor
+        Return pg connection
         """
-        con = self._con()
-        return con.cursor()
+        if self._con is None or self._con.closed:
+            self._con = self.create_connection()
+        return self._con
 
+    @backoff(OperationalError)
     def fetch_data(self, last_update: datetime, limit: int) -> Tuple[list, Optional[datetime]]:
         """
         Fetch data from database
         """
-        cur = self._cur()
-
-        cur.execute("""
-                   SELECT
-                       fw.id as fw_id, 
-                       fw.title, 
-                       fw.description, 
-                       fw.rating, 
-                       fw.type, 
-                       fw.created_at, 
-                       fw.updated_at, 
-                       pfw.role, 
-                       p.id as p_id, 
-                       p.full_name,
-                       g.name,
-                       Greatest(fw.updated_at, p.updated_at, g.updated_at) as greatest
-                   FROM film_work fw
-                   LEFT JOIN person_film_work pfw ON pfw.film_work_id = fw.id
-                   LEFT JOIN person p ON p.id = pfw.person_id
-                   LEFT JOIN genre_film_work gfw ON gfw.film_work_id = fw.id
-                   LEFT JOIN genre g ON g.id = gfw.genre_id
-                   WHERE fw.updated_at > %(updated_at)s OR p.updated_at > %(updated_at)s OR g.updated_at > %(updated_at)s
-                   ORDER BY Greatest(fw.updated_at, p.updated_at, g.updated_at) ASC
-                   LIMIT %(limit)s;
-               """, {'updated_at': last_update, 'limit': limit})
-        fetch_data = cur.fetchall()
+        with self.con.cursor() as cur:
+            cur.execute("""
+                       SELECT
+                           fw.id as id, 
+                           fw.title as title, 
+                           fw.description as description, 
+                           fw.rating as rating, 
+                           fw.type as type, 
+                           fw.created_at as created_at, 
+                           fw.updated_at as updated_at, 
+                           pfw.role as person_role, 
+                           p.id as person_id, 
+                           p.full_name as person_full_name,
+                           g.name as genre,
+                           Greatest(fw.updated_at, p.updated_at, g.updated_at) as greatest
+                       FROM film_work fw
+                       LEFT JOIN person_film_work pfw ON pfw.film_work_id = fw.id 
+                       LEFT JOIN person p ON p.id = pfw.person_id
+                       LEFT JOIN genre_film_work gfw ON gfw.film_work_id = fw.id 
+                       LEFT JOIN genre g ON g.id = gfw.genre_id
+                       WHERE fw.updated_at > %(updated_at)s OR p.updated_at > %(updated_at)s OR g.updated_at > %(updated_at)s
+                       ORDER BY Greatest(fw.updated_at, p.updated_at, g.updated_at) ASC
+                       LIMIT %(limit)s;
+                   """, {'updated_at': last_update, 'limit': limit})
+            fetch_data = cur.fetchall()
         data = [FilmWork(**dict(row)) for row in fetch_data]
         if len(data) == 0:
             return [], None

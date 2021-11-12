@@ -90,5 +90,4 @@ __pycache__/
 local_settings.py
 
 .env
-media/
-static/
+postgres_to_es/state.json

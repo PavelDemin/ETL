@@ -1,6 +1,7 @@
-from typing import Optional
-from pydantic import BaseSettings, SecretStr
 from pathlib import Path
+from typing import Optional
+
+from pydantic import BaseSettings, SecretStr
 
 
 class Settings(BaseSettings):

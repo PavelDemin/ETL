@@ -1,13 +1,13 @@
-import logging
 import datetime
 import itertools
-
+import logging
 from typing import Optional
-from pydantic import BaseModel
 from uuid import UUID
 
-import misc
 from extract import FilmWork
+from pydantic import BaseModel
+
+logger = logging.getLogger()
 
 
 class ElPerson(BaseModel):
@@ -39,44 +39,42 @@ class Transform:
         """ This method transform data"""
         fw = []
         last_date = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-        for key, group in itertools.groupby(self.data, lambda x: x.fw_id):
+        for key, group in itertools.groupby(self.data, lambda x: x.id):
             actors = []
             writers = []
             directors = []
             genres = []
             actors_names = []
             writers_names = []
-            group_list = list(group)
-            for i in group_list:
-                if i.p_id is not None:
-                    person = ElPerson(id=i.p_id, name=i.full_name)
-                    if i.role == 'actor' and person not in actors:
+            for fw_row in group:
+                if fw_row.person_id is not None:
+                    person = ElPerson(id=fw_row.person_id, name=fw_row.person_full_name)
+                    if fw_row.person_role == 'actor' and person not in actors:
                         actors.append(person)
-                        actors_names.append(i.full_name)
-                    if i.role == 'writer' and person not in writers:
+                        actors_names.append(fw_row.person_full_name)
+                    if fw_row.person_role == 'writer' and person not in writers:
                         writers.append(person)
-                        writers_names.append(i.full_name)
-                    if i.role == 'director' and i.full_name not in directors:
-                        directors.append(i.full_name)
-                if i.name not in genres:
-                    genres.append(i.name)
-                if last_date is None or i.updated_at > last_date:
-                    last_date = i.updated_at
-                if i == group_list[-1]:
-                    cls = ElFilmWork(
-                        id=i.fw_id,
-                        imdb_rating=i.rating,
-                        genre=genres,
-                        title=i.title,
-                        description=i.description,
-                        director=directors,
-                        actors_names=actors_names,
-                        writers_names=writers_names,
-                        actors=actors,
-                        writers=writers
-                    )
-                    fw.append(cls)
-                    logging.debug("Added FilmWork %s", (cls, ))
+                        writers_names.append(fw_row.person_full_name)
+                    if fw_row.person_role == 'director' and fw_row.person_full_name not in directors:
+                        directors.append(fw_row.person_full_name)
+                if fw_row.genre not in genres:
+                    genres.append(fw_row.genre)
+                if fw_row.updated_at > last_date:
+                    last_date = fw_row.updated_at
+            cls = ElFilmWork(
+                id=fw_row.id,
+                imdb_rating=fw_row.rating,
+                genre=genres,
+                title=fw_row.title,
+                description=fw_row.description,
+                director=directors,
+                actors_names=actors_names,
+                writers_names=writers_names,
+                actors=actors,
+                writers=writers
+            )
+            fw.append(cls)
+            logger.debug("Added FilmWork %s", (cls, ))
 
         return fw
 
@@ -94,7 +92,7 @@ class Transform:
                 "director": row.director if len(row.director) != 0 else None,
                 "actors_names": row.actors_names,
                 "writers_names": row.writers_names,
-                "actors": [dict(i) for i in row.actors],
-                "writers": [dict(i) for i in row.writers]
+                "actors": [i.dict() for i in row.actors],
+                "writers": [i.dict() for i in row.writers]
             }
             yield doc
