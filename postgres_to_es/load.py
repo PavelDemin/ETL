@@ -15,12 +15,18 @@ class Load:
 
     @backoff(ConnectionError)
     def _create_connection(self):
+        """
+        Create new connection to ES
+        """
         es = Elasticsearch([self.dsl])
         es.info()
         return es
 
     @property
     def es(self):
+        """
+        Return connection to ES
+        """
         if self._es is None or self._es.ping() is False:
             self._es = self._create_connection()
         return self._es
