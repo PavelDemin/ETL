@@ -8,7 +8,6 @@ from load import Load
 from state import JsonFileStorage, State
 from transform import Transform
 
-
 logger = logging.getLogger('ETL')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -37,7 +36,7 @@ def create_indices(es_load):
     with open(config.INDICES_FILE_PATH, "r") as file:
         indices: dict = json.load(file)
         for index in indices.keys():
-            if es_load.cat_index(index) is False:
+            if not es_load.cat_index(index):
                 logger.info(f"Index {index} not found!")
                 es_load.crate_index(index, indices[index])
                 logger.info("Index {index} create successful.")

@@ -4,10 +4,11 @@ from typing import Optional, Tuple
 from uuid import UUID
 
 import psycopg2
-from misc import backoff
 from psycopg2 import OperationalError
 from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor
+
+from misc import backoff
 
 
 @dataclass

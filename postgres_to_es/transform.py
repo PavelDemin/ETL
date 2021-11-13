@@ -4,8 +4,9 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from extract import FilmWork
 from pydantic import BaseModel
+
+from extract import FilmWork
 
 logger = logging.getLogger()
 
@@ -37,7 +38,6 @@ class Transform:
 
     def _transform_data(self) -> list[ElFilmWork]:
         """ This method transform data"""
-        fw = []
         last_date = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
         for key, group in itertools.groupby(self.data, lambda x: x.id):
             actors = []
@@ -73,10 +73,8 @@ class Transform:
                 actors=actors,
                 writers=writers
             )
-            fw.append(cls)
-            logger.debug("Added FilmWork %s", (cls, ))
-
-        return fw
+            logger.debug("Added FilmWork %s", (cls,))
+            yield cls
 
     def get_data(self):
         """ The method returns a generator with prepared data """
