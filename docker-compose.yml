@@ -13,17 +13,30 @@ services:
       - elasticsearch
   elasticsearch:
     container_name: elastic-serv
-    image: elasticsearch:7.14.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.15.1
     restart: always
     environment:
+      - node.name=elastic-serv
       - xpack.security.enabled=false
       - discovery.type=single-node
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     env_file:
       - .env
+    ports:
+      - 9200:9200
     networks:
       - etl-network
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.15.1
+    environment:
+      - ELASTICSEARCH_HOSTS=["http://elastic-serv:9200"]
+    depends_on:
+      - elasticsearch
+    networks:
+      - etl-network
+    ports:
+      - 5601:5601
 
 networks:
   etl-network:

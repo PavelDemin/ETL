@@ -91,3 +91,4 @@ local_settings.py
 
 .env
 postgres_to_es/state.json
+state.json
