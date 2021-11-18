@@ -1,55 +1,58 @@
-import abc
+import datetime
 import json
+import logging
 from typing import Any, Optional
 
 
-class BaseStorage:
-    @abc.abstractmethod
-    def save_state(self, state: dict) -> None:
-        """Save state to persistent storage"""
-        pass
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.datetime):
+            encoded_object = obj.isoformat()
+        else:
+            encoded_object = json.JSONEncoder.default(self, obj)
+        return encoded_object
 
-    @abc.abstractmethod
-    def retrieve_state(self) -> dict:
-        """Load state locally from persistent storage"""
-        pass
+class DateTimeDecoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
 
+    def object_hook(self, obj):
 
-class JsonFileStorage(BaseStorage):
-    """
-    Class for storing state in json file
-    """
-    def __init__(self, file_path: Optional[str] = None):
+        for key, value in obj.items():
+            try:
+                obj[key] = datetime.datetime.fromisoformat(value)
+            except Exception as e:
+                logging.exception(e, exc_info=True)
+
+        return obj
+
+class JsonFileStorage:
+    def __init__(self, file_path: str):
         self.file_path = file_path
 
     def save_state(self, state: dict) -> None:
-        """Save state to json file"""
-        with open(self.file_path, 'w') as file:
-            json.dump(state, file)
+        with open(self.file_path, 'w') as f:
+            json.dump(state, f, cls=DateTimeEncoder)
 
     def retrieve_state(self) -> dict:
-        """Load state locally from json file"""
-        with open(self.file_path, 'r') as file:
-            try:
-                data = json.load(file)
-            except json.JSONDecodeError:
-                data = {}
-        return data
-
+        try:
+            with open(self.file_path) as json_file:
+                return json.load(json_file, cls=DateTimeDecoder)
+        except FileNotFoundError:
+            return {}
 
 class State:
-    """
-    Class for storing state when working with data
-    """
 
-    def __init__(self, storage: BaseStorage):
-        self.storage = storage
+    def __init__(self, path: Optional[str]):
+        if path is None:
+            path = 'state.json'
+        self.storage = JsonFileStorage(path)
 
     def set_state(self, key: str, value: Any) -> None:
-        """Set state for a specific key"""
-        self.storage.save_state({key: value})
+        state = self.storage.retrieve_state()
+        state[key] = value
+        self.storage.save_state(state)
 
-    def get_state(self, key: str) -> Any:
-        """Get a state for a specific key"""
-        data = self.storage.retrieve_state()
-        return data.get(key, None)
+    def get_state(self, key: str, default: Any) -> Any:
+        state = self.storage.retrieve_state()
+        return state.get(key, default)

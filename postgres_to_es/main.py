@@ -1,5 +1,6 @@
 import json
 import logging
+import datetime
 from time import sleep
 
 from config import config
@@ -45,14 +46,16 @@ def create_indices(es_load):
 def main():
     extract = Extract(pg_dsl, config.LIMIT)
     es_load = Load(el_dsl)
-    state = State(JsonFileStorage(config.STATE_FILE_PATH))
+    
+    state = State(config.STATE_FILE_PATH)
 
     create_indices(es_load)
 
     while True:
         logger.info(f"Start extract data from Postgres server with limit {config.LIMIT}.")
-        st = state.get_state('updated_at')
-        data, updated_at = extract.fetch_data(st, config.LIMIT)
+        
+        updated_at = state.get_state('film_work_update_at', datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc))
+        data, updated_at = extract.fetch_data(updated_at, config.LIMIT)
         logger.info("Extract data end. Total length {}.".format(len(data)))
         if len(data) == 0:
             sleep(config.BULK_TIMER)
@@ -65,7 +68,8 @@ def main():
         logger.info(f"Start load data to Elasticsearch")
         info = es_load.load_data(data)
         if updated_at is not None:
-            state.set_state('updated_at', str(updated_at))
+            state.set_state('film_work_update_at', updated_at)
+
         logger.info(info)
         logger.info(f"Load data successful.")
 
