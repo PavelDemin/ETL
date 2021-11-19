@@ -86,9 +86,21 @@ class Extract:
 		                case when length(array_to_string(array_agg(distinct directors.full_name order by directors.full_name), ', ')) > 0 then array_to_string(array_agg(distinct directors.full_name order by directors.full_name), ', ')  else null end as director,
 		                case when length(array_to_string(array_agg(distinct actors.full_name order by actors.full_name), ', ')) > 0 then array_to_string(array_agg(distinct actors.full_name order by actors.full_name), ', ') else null end as actors_names,
 		                case when length(array_to_string(array_agg(distinct writers.full_name order by writers.full_name), ', ')) > 0 then array_to_string(array_agg(distinct writers.full_name order by writers.full_name), ', ') else null end as writers_names,
-		                jsonb_agg(distinct jsonb_strip_nulls(jsonb_build_object('uuid', directors.id, 'full_name', directors.full_name))) as directors,
-		                jsonb_agg(distinct jsonb_strip_nulls(jsonb_build_object('uuid', actors.id, 'full_name', actors.full_name))) as actors,
-		                jsonb_agg(distinct jsonb_strip_nulls(case when writers.id is null then null else jsonb_build_object('uuid', writers.id, 'full_name', writers.full_name) end)) as writers
+		                case 
+			                when jsonb_agg(distinct jsonb_strip_nulls(jsonb_build_object('uuid', directors.id, 'full_name', directors.full_name))) = '[{}]'
+			                then '[]'
+			                else jsonb_agg(distinct jsonb_strip_nulls(jsonb_build_object('uuid', directors.id, 'full_name', directors.full_name)))
+		                end as directors,
+		                case 
+			                when jsonb_agg(distinct jsonb_strip_nulls(jsonb_build_object('uuid', actors.id, 'full_name', actors.full_name))) = '[{}]'
+			                then '[]'
+			                else jsonb_agg(distinct jsonb_strip_nulls(jsonb_build_object('uuid', actors.id, 'full_name', actors.full_name)))
+		                end as actors,
+		                case 
+			                when jsonb_agg(distinct jsonb_strip_nulls(jsonb_build_object('uuid', writers.id, 'full_name', writers.full_name))) = '[{}]' 
+			                then '[]'
+			                else jsonb_agg(distinct jsonb_strip_nulls(jsonb_build_object('uuid', writers.id, 'full_name', writers.full_name))) 
+		                end as writers
 	                from 
 		                film_work_for_update as film_work_for_update
 			                inner join content.film_work as filmwork
