@@ -40,3 +40,11 @@ class GenreIndex(BaseModel):
     description: Optional[str]
     film_titles: str
     film_ids: List[FilmWorkRow]
+
+
+class PersonIndex(BaseModel):
+    uuid: UUID
+    full_name: str
+    role: List[str]
+    film_titles: str
+    film_ids: List[FilmWorkRow]
