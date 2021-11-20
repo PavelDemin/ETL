@@ -3,7 +3,6 @@ from typing import Optional
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ConnectionError, NotFoundError
 from elasticsearch.helpers import bulk
-
 from misc import backoff
 
 
