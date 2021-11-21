@@ -1,12 +1,12 @@
+import datetime
 import json
 import logging
-import datetime
 from time import sleep
 
 from config import config
 from extract import Extract
 from load import Load
-from state import JsonFileStorage, State
+from state import State
 from transform import Transform
 
 logger = logging.getLogger('ETL')
@@ -30,17 +30,23 @@ pg_dsl = {
 el_dsl = {'host': config.ES_HOST, "port": config.ES_PORT}
 
 
-def create_indices(es_load):
+def get_indices() -> dict:
+    """
+    Load from json file indices
+    """
+    with open(config.INDICES_FILE_PATH, "r") as file:
+        return json.load(file)
+
+
+def create_indices(es_load, indices: dict):
     """
     This method create index to elasticsearch database if index is not exist
     """
-    with open(config.INDICES_FILE_PATH, "r") as file:
-        indices: dict = json.load(file)
-        for index in indices.keys():
-            if not es_load.cat_index(index):
-                logger.info(f"Index {index} not found!")
-                es_load.crate_index(index, indices[index])
-                logger.info("Index {index} create successful.")
+    for index in indices.keys():
+        if not es_load.cat_index(index):
+            logger.info(f"Index {index} not found!")
+            es_load.crate_index(index, indices[index])
+            logger.info(f"Index {index} create successful.")
 
 
 def main():
@@ -49,29 +55,30 @@ def main():
     
     state = State(config.STATE_FILE_PATH)
 
-    create_indices(es_load)
+    indices = get_indices()
+    create_indices(es_load, indices)
 
     while True:
         logger.info(f"Start extract data from Postgres server with limit {config.LIMIT}.")
-        
-        updated_at = state.get_state('film_work_update_at', datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc))
-        data, updated_at = extract.fetch_data(updated_at, config.LIMIT)
-        logger.info("Extract data end. Total length {}.".format(len(data)))
-        if len(data) == 0:
-            sleep(config.BULK_TIMER)
-            continue
-        logger.info(f"Start transform data.")
-        transform = Transform(data)
-        data = transform.get_data()
-        logger.info("Transform data successful end.")
+        for index_name in indices.keys():
+            updated_at = state.get_state(f"{index_name}_update_at", datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc))
+            data, updated_at = extract.fetch_data(updated_at, config.LIMIT, index_name)
+            logger.info("Extract data from index {} end. Total length {}.".format(index_name, len(data)))
+            if len(data) == 0:
+                sleep(config.BULK_TIMER)
+                continue
+            logger.info(f"Start transform data.")
+            transform = Transform(data, index_name)
+            data = transform.get_data()
+            logger.info("Transform data successful end.")
 
-        logger.info(f"Start load data to Elasticsearch")
-        info = es_load.load_data(data)
-        if updated_at is not None:
-            state.set_state('film_work_update_at', updated_at)
+            logger.info(f"Start load data to Elasticsearch")
+            info = es_load.load_data(data)
+            if updated_at is not None:
+                state.set_state(f"{index_name}_update_at", updated_at)
 
-        logger.info(info)
-        logger.info(f"Load data successful.")
+            logger.info(info)
+            logger.info(f"Load data successful.")
 
         sleep(config.BULK_TIMER)
 

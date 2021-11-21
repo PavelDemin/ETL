@@ -12,6 +12,7 @@ class DateTimeEncoder(json.JSONEncoder):
             encoded_object = json.JSONEncoder.default(self, obj)
         return encoded_object
 
+
 class DateTimeDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs):
         json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
@@ -25,6 +26,7 @@ class DateTimeDecoder(json.JSONDecoder):
                 logging.exception(e, exc_info=True)
 
         return obj
+
 
 class JsonFileStorage:
     def __init__(self, file_path: str):
@@ -40,6 +42,7 @@ class JsonFileStorage:
                 return json.load(json_file, cls=DateTimeDecoder)
         except FileNotFoundError:
             return {}
+
 
 class State:
 
