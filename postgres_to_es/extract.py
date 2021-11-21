@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 import psycopg2
 from misc import backoff
-from models import FilmWorkIndex, GenreIndex
+from models import FilmWorkIndex, GenreIndex, PersonIndex
 from psycopg2 import OperationalError
 from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor
@@ -51,5 +51,7 @@ class Extract:
             cls = FilmWorkIndex
         elif index_name == "genre":
             cls = GenreIndex
+        else:
+            cls = PersonIndex
         data = [cls(**row) for row in fetch_data[0]]
         return data, fetch_data[1]
