@@ -41,12 +41,10 @@ class Transform:
 
     def get_data(self) -> List[dict]:
         """ The method returns a generator with prepared data """
-        actions = []
         for item in self.data:
             action = {
                 "_index": "movies",
                 "_id": item.uuid,
                 "_source": dataclasses.asdict(item)
             }
-            actions.append(action)
-        return actions
+            yield action
